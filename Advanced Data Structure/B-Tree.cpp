@@ -1,191 +1,140 @@
 #include <iostream>
+#include <vector>
 using namespace std;
-
-class BTreeNode {
-private:
-    int *keys;      // Array of keys
-    int t;          // Minimum degree (defines the range for the number of keys)
-    BTreeNode **C;  // Array of child pointers
-    int n;          // Current number of keys
-    bool leaf;      // True if leaf node
-
+template <class T, int n>
+class B_tree_node {
 public:
-    BTreeNode(int _t, bool _leaf);
-
-    void traverse();
-
-    BTreeNode *search(int k);
-
-    void insertNonFull(int k);
-
-    void splitChild(int i, BTreeNode *y);
-
-    friend class BTree;
-};
-
-class BTree {
-private:
-    BTreeNode *root; // Pointer to root node
-    int t;           // Minimum degree
-
-public:
-    BTree(int _t) {
-        root = nullptr;
-        t = _t;
+    vector<T> keys;
+    vector<B_tree_node*> children;
+    int num;
+    bool isLeaf;
+    // Constructor initializes a node with a flag indicating if it's a leaf node
+    B_tree_node(bool flag = true) : num(0), isLeaf(flag) {
+        keys.reserve(n-1);            // Reserve space for keys
+        children.reserve(n);     // Reserve space for children (n+1 because non-leaf nodes have n+1 children)
+        children.resize(n, nullptr);// Initialize children pointers to null
+        keys.resize(n-1,-1);
     }
-
-    void traverse() {
-        if (root != nullptr)
-            root->traverse();
-    }
-
-    BTreeNode *search(int k) {
-        return (root == nullptr) ? nullptr : root->search(k);
-    }
-
-    void insert(int k);
 };
 
 
-// BTreeNode constructor
-BTreeNode::BTreeNode(int _t, bool _leaf) {
-    t = _t;
-    leaf = _leaf;
-
-    keys = new int[2 * t - 1];
-    C = new BTreeNode *[2 * t];
-    n = 0;
-}
-
-// Function to traverse the tree
-void BTreeNode::traverse() {
-    int i;
-    for (i = 0; i < n; i++) {
-        if (!leaf)
-            C[i]->traverse();
-        cout << " " << keys[i];
+template <class T, int n>
+class B_tree {
+public:
+    B_tree_node<T, n>* root;
+    int t;
+    B_tree() {
+        this->t=n;
+        root = nullptr;  // Create the root node as a leaf
     }
 
-    if (!leaf)
-        C[i]->traverse();
-}
-
-// Function to search a key in the subtree rooted with this node
-BTreeNode *BTreeNode::search(int k) {
-    int i = 0;
-    while (i < n && k > keys[i])
-        i++;
-
-    if (keys[i] == k)
-        return this;
-
-    if (leaf)
-        return nullptr;
-
-    return C[i]->search(k);
-}
-
-// Function to insert a new key in this node
-void BTreeNode::insertNonFull(int k) {
-    int i = n - 1;
-
-    if (leaf) {
-        while (i >= 0 && keys[i] > k) {
-            keys[i + 1] = keys[i];
-            i--;
+    // Split the child node when it is full
+    void split(int i, B_tree_node<T, n>* splitter,B_tree_node<T, n>* parent ) {
+        B_tree_node<T, n>* new_node = new B_tree_node<T, n>(splitter->isLeaf);
+        new_node->num = (t-1)/ 2 ;  // Half the number of keys for the new node
+        for (int j = 0; j < (t-1)/ 2 ; j++) {
+            new_node->keys[j] = splitter->keys[(t-1) / 2 + j];
         }
+        if (!splitter->isLeaf) {
+            for (int j = 0; j < t / 2 ; j++) {  // Copy the children of the node
+                new_node->children[j] = splitter->children[(t-1) / 2 + j];
+            }
+        }
+        splitter->num = (t-1)/ 2 ;  // Adjust the number of keys in the original node
+        // Shift the children of the parent node to make room for the new child
+        for (int j = parent->num; j >= i+1 ; j--) {
+            parent->children[j + 1] = parent->children[j];
+        }
+        // Insert the new child into the parent node
+        parent->children[i + 1] = new_node;
+        // Shift the keys of the parent node to make room for the new key
+        for (int j = splitter->num -1 ; j >= 0; j--) {
+            splitter->keys[j+1] = splitter->keys[j];
+        }
+        // Move the middle key from the child to the parent node
+        parent->keys[i] = splitter->keys[(t-1) / 2 ];
+        parent->num++;
 
-        keys[i + 1] = k;
-        n++;
-    } else {
-        while (i >= 0 && keys[i] > k)
-            i--;
+    }
 
-        if (C[i + 1]->n == 2 * t - 1) {
-            splitChild(i + 1, C[i + 1]);
+    // Insert key into the current node
+    void insert_key(T key, B_tree_node<T, n>* node) {
+        int i = node->num - 1;
+        if (node->isLeaf) {  // If the node is a leaf, insert the key
+            while (i >= 0 && key < node->keys[i]) {
+                node->keys[i + 1] = node->keys[i];
+                i--;
+            }
+            node->keys[i+1] = key;
+            node->num ++;
+        } else {  // If the node is not a leaf, insert in the appropriate child
+            while (i >= 0 && key < node->keys[i])
+                i--;
+            i++;
+            if (node->children[i]->num == t - 1) {
+               split(i, node->children[i] , node);
+               node->children[i]->num--;
+                if (key > node->keys[i])
+                    i++;
+            }
+            insert_key(key, node->children[i]);
+        }
+    }
 
-            if (keys[i + 1] < k)
+    void insert(T key) {
+        if(root== nullptr){
+            root = new B_tree_node<T,n>(true);
+            root->keys[0]=key;
+            root->num++;
+        }
+        else if (root->isLeaf && root->num==t-1) {
+            // If the root is full, create a new root and split the old root
+            B_tree_node<T, n>* new_node = new B_tree_node<T, n>(false);  // New non-leaf root
+            new_node->children[0] = root;
+            split(0, new_node->children[0] , new_node);
+            root->num--;
+            int i=0;
+            if(new_node->keys[0]<key)
                 i++;
+
+            insert_key(key, new_node->children[i]);
+            root = new_node;
         }
-        C[i + 1]->insertNonFull(k);
-    }
-}
-
-// Function to split the child y of this node
-void BTreeNode::splitChild(int i, BTreeNode *y) {
-    BTreeNode *z = new BTreeNode(y->t, y->leaf);
-    z->n = t - 1;
-
-    for (int j = 0; j < t - 1; j++)
-        z->keys[j] = y->keys[j + t];
-
-    if (!y->leaf) {
-        for (int j = 0; j < t; j++)
-            z->C[j] = y->C[j + t];
+        else
+            insert_key(key, root);
     }
 
-    y->n = t - 1;
-
-    for (int j = n; j >= i + 1; j--)
-        C[j + 1] = C[j];
-
-    C[i + 1] = z;
-
-    for (int j = n - 1; j >= i; j--)
-        keys[j + 1] = keys[j];
-
-    keys[i] = y->keys[t - 1];
-    n++;
-}
-
-// Function to insert a new key in the B-Tree
-void BTree::insert(int k) {
-    if (root == nullptr) {
-        root = new BTreeNode(t, true);
-        root->keys[0] = k;
-        root->n = 1;
-    } else {
-        if (root->n == 2 * t - 1) {
-            BTreeNode *s = new BTreeNode(t, false);
-            s->C[0] = root;
-
-            s->splitChild(0, root);
-
-            int i = 0;
-            if (s->keys[0] < k)
-                i++;
-            s->C[i]->insertNonFull(k);
-
-            root = s;
-        } else {
-            root->insertNonFull(k);
+    void print(B_tree_node<T, n>* node, int level = 0) {
+        if (node == nullptr) return;
+        // Indentation for the current level
+        for (int i = 0; i < level; i++) {
+            cout << "  "; // Two spaces for each level of indentation
+        }
+        // Print the keys of the current node
+        for (int i = 0; i < node->num; i++) {
+            cout << node->keys[i] << (i==node->num-1 ? ' ' : ',');
+        }
+        cout << endl;
+        // Recursively print the children if it's not a leaf node
+        if (!node->isLeaf) {
+            for (int i = 0; i <= node->num; i++) {
+                print(node->children[i], level + 1);  // Increase indentation for child nodes
+            }
         }
     }
-}
+};
 
-// Main function to test the B-Tree implementation
 int main() {
-    BTree t(3); // A B-Tree with minimum degree 3
+    B_tree<int, 3> t1;  // Create a B-tree of integers with order 3 (2 keys per node)
+    // Insert some keys into the B-tree
+    t1.insert(1);
+    t1.insert(6);
+    t1.insert(0);
+    t1.insert(5);
+    t1.insert(4);
+    t1.insert(2);
+    t1.insert(3);
+    // Print the tree structure
+    t1.print(t1.root);  // Should display the keys in sorted order
 
-    t.insert(10);
-    t.insert(20);
-    t.insert(5);
-    t.insert(6);
-    t.insert(12);
-    t.insert(30);
-    t.insert(7);
-    t.insert(17);
-
-    cout << "Traversal of the constructed B-Tree is:\n";
-    t.traverse();
-
-    int key = 6;
-    (t.search(key) != nullptr) ? cout << "\n\nKey " << key << " found in the B-Tree.\n"
-                               : cout << "\n\nKey " << key << " not found in the B-Tree.\n";
-
-    key = 15;
-    (t.search(key) != nullptr) ? cout << "Key " << key << " found in the B-Tree.\n"
-                               : cout << "Key " << key << " not found in the B-Tree.\n";
-
-    return 0;
-}
+    return 0;}

@@ -1,15 +1,16 @@
 #include <iostream>
 using namespace std;
 
+template <typename T>
 class Node {
 public:
-    int data;
+    T data;
     Node* left;
     Node* right;
     Node* parent;
     char color;
 
-    Node(int data) {
+    Node(T data) {
         this->data = data;
         this->left = nullptr;
         this->right = nullptr;
@@ -18,19 +19,19 @@ public:
     }
 };
 
+template <typename T>
 class Red_Black_Tree {
 public:
-
     Red_Black_Tree() {
         root = nullptr;
     }
 
-    void insert(int data) {
-        Node* newnode = new Node(data);
+    void insert(T data) {
+        Node<T>* newnode = new Node<T>(data);
         insert(newnode);
     }
 
-    void deleteNode(int data) {
+    void deleteNode(T data) {
         deleteNode(root, data);
     }
 
@@ -39,8 +40,9 @@ public:
     }
 
 private:
-    Node* root;
-    void print(Node* node) {
+    Node<T>* root;
+
+    void print(Node<T>* node) {
         if (node != nullptr) {
             cout << node->data << " " << node->color << "\n";
             print(node->left);
@@ -48,9 +50,9 @@ private:
         }
     }
 
-    void insert(Node* newnode) {
-        Node* x = root;
-        Node* y = nullptr;
+    void insert(Node<T>* newnode) {
+        Node<T>* x = root;
+        Node<T>* y = nullptr;
 
         while (x != nullptr) {
             y = x;
@@ -69,8 +71,8 @@ private:
         insert_fixup(newnode);
     }
 
-    void rotate_left(Node* node) {
-        Node* y = node->right;
+    void rotate_left(Node<T>* node) {
+        Node<T>* y = node->right;
         node->right = y->left;
         if (y->left != nullptr)
             y->left->parent = node;
@@ -85,8 +87,8 @@ private:
         node->parent = y;
     }
 
-    void rotate_right(Node* node) {
-        Node* y = node->left;
+    void rotate_right(Node<T>* node) {
+        Node<T>* y = node->left;
         node->left = y->right;
         if (y->right != nullptr)
             y->right->parent = node;
@@ -101,10 +103,10 @@ private:
         node->parent = y;
     }
 
-    void insert_fixup(Node* newnode) {
+    void insert_fixup(Node<T>* newnode) {
         while (newnode->parent != nullptr && newnode->parent->color == 'R') {
             if (newnode->parent == newnode->parent->parent->left) {
-                Node* uncle_newNode = newnode->parent->parent->right;
+                Node<T>* uncle_newNode = newnode->parent->parent->right;
 
                 // Case 1: Uncle is red, recolor
                 if (uncle_newNode != nullptr && uncle_newNode->color == 'R') {
@@ -124,7 +126,7 @@ private:
                     rotate_right(newnode->parent->parent);
                 }
             } else { // Mirror case: newnode's parent is a right child
-                Node* uncle_newNode = newnode->parent->parent->left;
+                Node<T>* uncle_newNode = newnode->parent->parent->left;
 
                 // Case 1: Uncle is red, recolor
                 if (uncle_newNode != nullptr && uncle_newNode->color == 'R') {
@@ -149,9 +151,9 @@ private:
         root->color = 'B';
     }
 
-    void deleteNode(Node* node, int key) {
-        Node* z = nullptr;
-        Node* x, * succsessor;
+    void deleteNode(Node<T>* node, T key) {
+        Node<T>* z = nullptr;
+        Node<T>* x, * succsessor;
         while (node != nullptr) {
             if (node->data == key) {
                 z = node;
@@ -199,8 +201,7 @@ private:
         }
     }
 
-    // to assgin  parent u  to  v
-    void rbTransplant(Node* u, Node* v) {
+    void rbTransplant(Node<T>* u, Node<T>* v) {
         if (u->parent == nullptr) {
             root = v;
         } else if (u == u->parent->left) {
@@ -213,40 +214,33 @@ private:
         }
     }
 
-    void deleteFix(Node* DB)// DB => Double black
-    {
+    void deleteFix(Node<T>* DB) {
         while (DB != root && (DB == nullptr || DB->color == 'B')) {
             if (DB == DB->parent->left) {
-                Node* brother = DB->parent->right;
-                // case 1 : sbiling is red
+                Node<T>* brother = DB->parent->right;
                 if (brother->color == 'R') {
-                    swap(brother->color , DB->parent->color);
+                    swap(brother->color, DB->parent->color);
                     rotate_left(DB->parent);
                     brother = DB->parent->right;
                 }
-
-                // case 2 : sbiling is black and both children black
                 if ((brother->left == nullptr || brother->left->color == 'B') &&
                     (brother->right == nullptr || brother->right->color == 'B')) {
                     brother->color = 'R';
                     DB = DB->parent;
                 } else {
-
-                    // case 3 : sbiling is black and far of DB is black
                     if (brother->right == nullptr || brother->right->color == 'B') {
                         if (brother->left != nullptr) brother->left->color = 'B';
                         brother->color = 'R';
                         rotate_right(brother);
                         brother = DB->parent->right;
                     }
-                    // case 4
                     swap(DB->parent->color, brother->color);
                     rotate_left(DB->parent);
                     if (brother->right != nullptr) brother->right->color = 'B';
                     DB = root;
                 }
             } else {
-                Node* w = DB->parent->left;
+                Node<T>* w = DB->parent->left;
                 if (w->color == 'R') {
                     w->color = 'B';
                     DB->parent->color = 'R';
@@ -275,7 +269,7 @@ private:
         if (DB != nullptr) DB->color = 'B';
     }
 
-    Node* getSuccessor(Node* node) {
+    Node<T>* getSuccessor(Node<T>* node) {
         while (node->left != nullptr) {
             node = node->left;
         }
@@ -284,7 +278,7 @@ private:
 };
 
 int main() {
-    Red_Black_Tree* rbt = new Red_Black_Tree();
+    Red_Black_Tree<int>* rbt = new Red_Black_Tree<int>();
     rbt->insert(10);
     rbt->insert(5);
     rbt->insert(15);
