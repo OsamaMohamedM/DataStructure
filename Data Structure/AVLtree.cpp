@@ -4,7 +4,8 @@ template<class T>
 class node {
 public:
     T data;
-   node<T>* left, right;
+   node<T>* left;
+ node<T>* right;
     node(const T& data)
     {
         left = right = NULL;
